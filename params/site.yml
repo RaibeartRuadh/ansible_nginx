@@ -1,0 +1,126 @@
+---
+- hosts: server
+  become: true
+  vars:
+    nginx_version: nginx-1.13.4
+    nginx_tarball_url: "http://nginx.org/download/{{ nginx_version }}.tar.gz"
+    nginx_install_dir: "/tmp/{{ nginx_version }}"
+    nginx_sbin_path: "/usr/sbin/nginx"
+    nginx_conf_path: "/etc/nginx/nginx.conf"
+    nginx_custom_modules: "--with-http_auth_request_module"
+    nginx_port: 8080
+
+  tasks:
+  - name: Устанавливаем необходимые и вспомогательные пакеты через yum
+    become: true
+    yum:
+      name: "{{item}}"
+      state: present
+    loop:
+      - mc
+      - gcc
+      - nano
+      - make
+      - automake
+      - yum-utils
+      - pcre-devel
+      - openssl-devel
+      - perl-ExtUtils-Embed
+      - wget
+      - tar
+
+  - name: Стягиваем исходники nginx
+    get_url:
+      url: "{{ nginx_tarball_url }}"
+      dest: /home/vagrant
+      mode: 0755
+
+  - name: Создаем директории
+    become: true
+    file:
+      path: /etc/nginx
+      state: directory
+      owner: root
+      mode: 0755
+
+  - name: Создаем директории
+    become: true
+    file:
+      path: /tmp/{{ nginx_version }}
+      state: directory
+      owner: root
+      mode: 0777
+  - name: Создаем директории
+    become: true
+    file:
+      path: /var/log/nginx
+      state: directory
+      owner: root
+      mode: 0777
+  - name: Делаем разархивацию
+    unarchive:
+      src: "/home/vagrant/{{ nginx_version }}.tar.gz"
+      dest: "/tmp/{{ nginx_version }}"
+      extra_opts: [--strip-components=1]
+      remote_src: true
+  - name: Выполняем конфигурирование nginx
+    command: "./configure --sbin-path={{ nginx_sbin_path }} --conf-path={{ nginx_conf_path }} {{ nginx_custom_modules }}"
+    become: true
+    args:
+      chdir: "{{ nginx_install_dir }}"
+    register: nginx_configure
+  - name: Делаем make
+    command: make
+    become: true
+    args:
+      chdir: "/tmp/{{ nginx_version }}"
+  - name: Делаем make install
+    command: make install
+    become: true
+    args:
+      chdir: "/tmp/{{ nginx_version }}"
+      
+  - name: копируем nginx.conf c нашими настройками на место
+    copy:
+      src: nginx.conf
+      dest: /etc/nginx/nginx.conf
+      owner: root
+      group: root
+      mode: '0644'
+    become: true
+
+  - name: копируем файл скрипта инициации для будущего nginx
+    copy: 
+      src: nginx
+      dest: /etc/init.d/nginx
+      owner: vagrant
+      group: root
+      mode: "a+x"
+    become: true      
+      
+  - name: Делаем make
+    command: /bin/bash nginx start
+    become: true
+    args:
+      chdir: /etc/init.d/
+  - name: копируем страничку index.html на место
+    copy:
+      src: index.html
+      dest: /usr/local/nginx/html/index.html
+      owner: root
+      group: root
+      mode: '0777'
+    become: true
+    notify: Restart Nginx
+    
+  handlers:
+  - name: Restart Nginx
+    become: true
+    service:
+      name: nginx
+      state: restarted 
+    
+    
+    
+    
+    

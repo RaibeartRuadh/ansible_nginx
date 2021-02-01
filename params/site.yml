@@ -9,15 +9,15 @@
     nginx_listen_port: 8080
 
   tasks:
-  - name: Делаем директорию под страничку сайта
+  - name: making folder for site
     become: true
     file:
       path: /opt/www
       state: directory
       owner: root
       mode: 0777
-      
-  - name: Устанавливаем необходимые и вспомогательные пакеты через yum
+
+  - name: install packages via yum
     become: true
     yum:
       name: "{{item}}"
@@ -26,16 +26,16 @@
       - mc
       - nano
       - yum-utils
-      
-  - name: Устанавливаем epel-репозиторий
+
+  - name: install epel repository
     yum:
       name: epel-release
       state: present
     tags:
       - epel-package
       - packages
-      
-  - name: Устанавливаем nginx из epel-репозитория
+
+  - name: Install nginx from epel via yum
     yum:
       name: nginx
       state: latest
@@ -44,8 +44,8 @@
     tags:
       - nginx-package
       - packages
-      
-  - name: Создаем конфигурацию nginx используя шаблон jinja2
+
+  - name: Create custom config using jinja2
     template:
       src: nginx.j2
       dest: /etc/nginx/nginx.conf
@@ -53,8 +53,8 @@
         - reload nginx
     tags:
         - nginx-configuration
-        
-  - name: копируем страничку index.html на место
+
+  - name: copy default page index.html
     copy:
       src: index.html
       dest: /opt/www/index.html
@@ -70,15 +70,10 @@
       name: nginx
       state: restarted
       enabled: yes
+
   - name: reload nginx
     systemd:
       name: nginx
       state: reloaded
 
-
-
-    
-    
-    
-    
 
